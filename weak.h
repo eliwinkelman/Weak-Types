@@ -273,8 +273,6 @@ public:
 
 private:
 
-
-
     ///// returns the underlying pointer if the type is correct. Otherwise returns a nullptr;
     template <typename Type>
     void check(weak_type<Type> check_type) const {
@@ -302,7 +300,6 @@ private:
         }
     };
 
-
     template <typename T, typename V>
     struct cast {
         void operator() (T val, V* returnVal) {
@@ -319,7 +316,7 @@ public:
     /// Weak types
 
     /// rvalue
-    weak<Types...> operator+ (weak<Types...>&& other) {
+    weak<Types...> operator+ (const weak<Types...>&& other) {
 
 
         weak<Types...> added;
@@ -330,7 +327,7 @@ public:
     }
 
     /// lvalue
-    weak<Types...> operator+ (weak<Types...>& other) {
+    weak<Types...> operator+ (const weak<Types...>& other) {
 
 
         weak<Types...> added;
@@ -342,14 +339,14 @@ public:
 
     /// Subtraction
     /// Weak Types
-    weak<Types...> operator- (weak<Types...>& other){
-        return operator+(other*-1);
+    weak<Types...> operator- (const weak<Types...>& other){
+        return operator+(other*weak<Types...>(-1));
     }
 
     /// Multiplication
     /// Weak Types
 
-    weak<Types...> operator* (weak<Types...>& other) {
+    weak<Types...> operator* (const weak<Types...>& other) {
 
         weak<Types...> multiplied;
 
@@ -359,7 +356,7 @@ public:
 
     }
 
-    weak<Types...> operator* (weak<Types...>&& other) {
+    weak<Types...> operator* (const weak<Types...>&& other) {
 
         weak<Types...> multiplied;
 
@@ -371,21 +368,21 @@ public:
 
     /// Division
     /// Weak Types
-    weak<Types...> operator / (weak<Types...>& other) {
+    weak<Types...> operator / (const weak<Types...>& other) {
         weak<Types...> divided;
         other.run<divideTop>(this, &divided);
 
         return divided;
     }
 
-    weak<Types...> operator / (weak<Types...>&& other) {
+    weak<Types...> operator / (const weak<Types...>&& other) {
         weak<Types...> divided;
         other.run<divideTop>(this, &divided);
 
         return divided;
     }
 
-    bool operator < (weak<Types...>& other) {
+    bool operator < (const weak<Types...>& other) const {
         bool result;
 
         other.run<lessTop>(this, &result);
@@ -393,7 +390,7 @@ public:
         return result;
     }
 
-    bool operator < (weak<Types...>&& other) {
+    bool operator < (const weak<Types...>&& other) const {
         bool result;
 
         other.run<lessTop>(this, &result);
@@ -401,47 +398,57 @@ public:
         return result;
     }
 
-    bool operator > (weak<Types...>& other) {
+    bool operator > (const weak<Types...>& other) const {
         return other.operator<(*this);
     }
 
-    bool operator > (weak<Types...>&& other) {
+    bool operator > (const weak<Types...>&& other) const {
         return other.operator<(*this);
     }
 
 
-    bool operator <= (weak<Types...>& other){
+    bool operator <= (const weak<Types...>& other) const {
         return !operator>(other);
     }
 
-    bool operator <= (weak<Types...>&& other){
+    bool operator <= (const weak<Types...>&& other) const {
         return !operator>(other);
     }
 
-    bool operator >= (weak<Types...>& other){
+    bool operator >= (const weak<Types...>& other) const {
         return !operator<(other);
     }
 
-    bool operator >= (weak<Types...>&& other){
+    bool operator >= (const weak<Types...>&& other) const {
         return !operator<(other);
     }
 
-    weak<Types...>& operator +=(weak<Types...>& other) {
+    weak<Types...>& operator +=(const weak<Types...>& other) {
         *this = *this+other;
         return *this;
     };
 
-    weak<Types...>& operator -=(weak<Types...>& other) {
+    weak<Types...>& operator -=(const weak<Types...>& other) {
         *this = *this-other;
         return *this;
     };
+
+    weak<Types...>& operator *=(const weak<Types...>& other) {
+        *this = *this * other;
+        return *this;
+    }
+
+    weak<Types...>& operator /=(const weak<Types...>& other) {
+        *this = *this / other;
+        return *this;
+    }
 
 private:
 
     /// Addition implementation
     template <typename T>
     struct addTop {
-        void operator() (T&& val, weak<Types...>* other, weak<Types...>* adding) {
+        void operator() (T val, const weak<Types...>* other, weak<Types...>* adding) {
             other -> run<addBottom, T>(val, adding);
         }
     };
@@ -449,9 +456,8 @@ private:
     template <typename T, typename V>
 
     struct addBottom {
-        void operator() (T&& val, V&& val1, weak<Types...>* adding) {
-            auto plus = val + val1;
-            adding -> emplace(plus);
+        void operator() (T val, V val1, weak<Types...>* adding) {
+            adding -> emplace(val + val1);
         }
     };
 
@@ -466,9 +472,7 @@ private:
     template <typename T, typename V>
     struct multBottom {
         void operator() (T val, V val1, weak<Types...>* multiplying) {
-            auto mult = val * val1;
-            multiplying -> emplace(mult);
-
+            multiplying -> emplace(val * val1);
         }
     };
 
@@ -482,10 +486,7 @@ private:
     template< typename  T, typename V>
     struct divideBottom {
         void operator() (T val, V val2, weak<Types...>* dividing) {
-
-            auto divide = val/val2;
-            dividing -> emplace(divide);
-
+            dividing -> emplace(val/val2);
         }
     };
 
