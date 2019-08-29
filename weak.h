@@ -176,11 +176,11 @@ public:
         ptr.template run<copy>(this);
     }
 
-    weak(weak<Types...>&& val) {
+    weak(const weak<Types...>&& val) {
         val.template run<copy>(this);
     }
 
-    weak<Types...>& operator=(weak<Types...>&& ptr) {
+    weak<Types...>& operator=(const weak<Types...>&& ptr) {
 
         // assign with underlying value
         // check for self assignment
@@ -209,7 +209,7 @@ public:
     }
 
     template <typename T>
-    weak<Types...>& operator=(T&& val){
+    weak<Types...>& operator=(const T&& val){
 
         // otherwise assign normally
         emplace(val);
@@ -229,7 +229,7 @@ public:
 
 
     template <typename T>
-    void emplace(T val) {
+    void emplace(const T val) {
 
         /// ensure that the type is valid at compile time
         static_assert(type_id::valid(weak_type<T>{}), "Cannot store with non-weak type.");
