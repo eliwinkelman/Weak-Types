@@ -226,8 +226,6 @@ public:
         return *this;
     }
 
-
-
     template <typename T>
     void emplace(const T val) {
 
@@ -263,21 +261,33 @@ public:
         using_weak<Functor, Ts...>::with(weak_types<Types...>{}, std::move(*this), std::forward<Args>(args)...);
     };
 
-    template <typename T>
-    T&& value() const {
-        check(weak_type<T>{});
 
-        return std::move(*(T*)storage);
+    template <typename T, typename ErrorHandlerFunc>
+    T&& value(ErrorHandlerFunc errorHandler) const {
+        if (check(weak_type<T>{}, errorHandler)) {
+            return std::move(*(T*)storage);
+        }
+        else return std::move(T{});
     };
-
 
 private:
 
     ///// returns the underlying pointer if the type is correct. Otherwise returns a nullptr;
-    template <typename Type>
-    void check(weak_type<Type> check_type) const {
-        DEBUG_ASSERT(current_type == check_type, precondition_error_handler{}, "Not a valid type.") ;
+    template <typename Type, typename ErrorHandlerFunc>
+    bool check(weak_type<Type> check_type, ErrorHandlerFunc errorHandler) const {
+        if (!(current_type == check_type)){
+            errorHandler("Attempting to access weak with incorrect type.");
+            return false;
+        }
+        return true;
+
     }
+
+    template <typename T>
+    T&& value() const {
+        return std::move(*(T*)storage);
+    };
+
 
     //// Functors to destroy, copy, move, assign without knowing the underlying value
     template <typename T>
