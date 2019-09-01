@@ -39,7 +39,7 @@ Returns: bool
 
 Behavior: Returns true if the weak<Types...> is in a valid state (i.e. current_type refers to a type in Types...). Returns false otherwise.
 
-#### bool isType<Type>() 
+#### bool isType\<Type\>() 
 Input: a Type template parameter.
 
 Returns: Bool
@@ -47,7 +47,7 @@ Returns: Bool
 Behavior: Returns true if the underlying value has is of type Type, returns false otherwise.
 
   
-#### void run<Functor<typename T>>(Args... args)
+#### void run<Functor\<typename T>>(Args... args)
 Input: 
   
   * Functor: a struct with at least one templated type T and a defined () operator which accepts a value of type T as the first argument.
@@ -78,7 +78,7 @@ Example:
   // 
 ```
 
-#### simple_optional<T> retrieve<Type>() 
+#### simple_optional\<Type\> retrieve<Type>() 
 Inputs: A type.
 
 Returns: A simple_optional object.
