@@ -273,12 +273,12 @@ public:
     }
 
     template <template<typename Type, typename ... Ts> class Functor, typename ... Ts, typename ... Args>
-    void run(Args... args) {
+    void run(Args&&... args) {
         using_weak<Functor, Ts...>::with(weak_types<Types...>{}, std::move(*this), std::forward<Args>(args)...);
     };
 
     template <template<typename Type, typename ... Ts> class Functor, typename ... Ts, typename ... Args>
-    void run(Args... args) const {
+    void run(Args&&... args) const {
         using_weak<Functor, Ts...>::with(weak_types<Types...>{}, std::move(*this), std::forward<Args>(args)...);
     };
 
@@ -288,6 +288,7 @@ public:
         if (check(weak_type<T>{}, errorHandler)) {
             return std::move(*(T*)storage);
         }
+        ///TODO: check that T is default constructable.
         else return std::move(T{});
     };
 
@@ -297,11 +298,10 @@ private:
     template <typename Type, typename ErrorHandlerFunc>
     bool check(weak_type<Type> check_type, ErrorHandlerFunc errorHandler) const {
         if (!(current_type == check_type)){
-            errorHandler("Attempting to access weak with incorrect type.");
+            errorHandler("[ERROR] Weak Types: Attempting to access underlying value with incorrect type.");
             return false;
         }
         return true;
-
     }
 
     template <typename T>
