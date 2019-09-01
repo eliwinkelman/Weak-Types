@@ -78,7 +78,7 @@ Example:
   // 
 ```
 
-#### simple_optional\<Type\> retrieve<Type>() 
+#### simple_optional\<Type\> retrieve\<Type>() 
 Inputs: A type.
 
 Returns: A simple_optional object.
