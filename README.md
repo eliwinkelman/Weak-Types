@@ -85,3 +85,24 @@ Returns: A simple_optional object.
 
 Behavior: 
 If the underlying value is of type T, returns a simple_optional object that holds the underlying value. Otherwise returns a simple_optional object that holds nothing.
+
+Example usage:
+
+``` c++
+    using var = weak<int, float, double, std::string>;
+    var a = 10;
+    a.retrieve<int>().value_or(0); // 10
+    a.retrieve<float>().value_or(0); // 0;
+    a.retrieve<int>().value(); // 10
+    a.retrieve<float>().value(); // Error
+    
+    if (a.retrieve<float>()) {
+      float val = a.retrieve<float>().value();
+      
+      // do stuff with your float
+    }
+    else {
+      // didn't get a float :(
+    }
+    
+```
