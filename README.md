@@ -78,12 +78,10 @@ Example:
   // 
 ```
 
-#### T&& value<Type>(ErrorHandlerFunc errorHandlerFunc) 
-Inputs: A type and an error handling function that accepts a string as it's only argument.
+#### simple_optional<T> retrieve<Type>() 
+Inputs: A type.
 
-Output: The underlying value of type T or an instance of T created by T's default constructor.
+Returns: A simple_optional object.
 
 Behavior: 
-If the underlying value is of type T, returns the underlying value. Otherwise it calls errorHandlerFunc with the error message "\[ERROR\] Weak Types: Attempting to access underlying value with incorrect type." and returns an object created with T's default constructor.
-
-
+If the underlying value is of type T, returns a simple_optional object that holds the underlying value. Otherwise returns a simple_optional object that holds nothing.
