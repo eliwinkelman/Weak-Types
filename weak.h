@@ -12,6 +12,53 @@
 #include "is_comparable.h"
 
 
+template <class T>
+class simple_optional {
+
+    // no assignments
+    simple_optional& operator=(const simple_optional&) = delete;
+
+    T* ptr;
+
+public:
+
+    simple_optional() {
+        ptr = nullptr;
+    }
+
+    simple_optional(T val) {
+        ptr = new T(val);
+    }
+
+    simple_optional(const simple_optional& other) {
+        if (other) {
+            ptr = new T(other.value());
+        }
+        else {
+            ptr = nullptr;
+        }
+    }
+
+    ~simple_optional() {
+        if (ptr != nullptr) {
+            delete ptr;
+            ptr = nullptr;
+        }
+    }
+
+    constexpr const T& value_or(const T& orVal) const & {
+        return ptr != nullptr ? *ptr : orVal;
+    }
+
+    constexpr T& value() const &{
+        return *ptr;
+    }
+
+    constexpr operator bool() const {
+        return ptr != nullptr;
+    }
+};
+
 //=== get_type_index ==//
 template <typename T, typename... Ts>
 struct get_type_index_impl;
@@ -282,26 +329,20 @@ public:
         using_weak<Functor, Ts...>::with(weak_types<Types...>{}, std::move(*this), std::forward<Args>(args)...);
     };
 
-
-    template <typename T, typename ErrorHandlerFunc>
-    T&& value(ErrorHandlerFunc errorHandler) const {
-        if (check(weak_type<T>{}, errorHandler)) {
-            return std::move(*(T*)storage);
+    template <typename T>
+    simple_optional<T> retrieve() const {
+        if (check(weak_type<T>{})) {
+            return simple_optional<T>(*(T*)storage);
         }
-        ///TODO: check that T is default constructable.
-        else return std::move(T{});
+        else return simple_optional<T>();
     };
 
 private:
 
     ///// returns the underlying pointer if the type is correct. Otherwise returns a nullptr;
-    template <typename Type, typename ErrorHandlerFunc>
-    bool check(weak_type<Type> check_type, ErrorHandlerFunc errorHandler) const {
-        if (!(current_type == check_type)){
-            errorHandler("[ERROR] Weak Types: Attempting to access underlying value with incorrect type.");
-            return false;
-        }
-        return true;
+    template <typename Type>
+    bool check(weak_type<Type> check_type) const {
+        return current_type == check_type;
     }
 
     template <typename T>
