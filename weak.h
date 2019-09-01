@@ -9,19 +9,8 @@
 #include "type_traits"
 #include <utility>
 #include "strong_typedef.h"
-#include "debug_assert.h"
 
-struct precondition_error_handler
-        : debug_assert::set_level<1>,
-          debug_assert::default_handler
-{};
 
-inline void on_disabled_exception() noexcept
-{
-    struct handler : debug_assert::set_level<1>, debug_assert::default_handler
-    {};
-    DEBUG_UNREACHABLE(handler{}, "attempt to throw an exception but exceptions are disabled");
-}
 
 //=== get_type_index ==//
 template <typename T, typename... Ts>
@@ -49,6 +38,25 @@ struct get_type_index_impl<T, Head, Tail...> : std::integral_constant<std::size_
         1 + get_type_index_impl<T, Tail...>::value>
 {};
 
+
+template <std::size_t N, typename ... Ts>
+struct get_type_from_index;
+
+template <std::size_t N>
+struct get_type_from_index<N> {
+    using type = void;
+};
+
+template <typename T, typename ... Ts>
+struct get_type_from_index<0, T, Ts...> {
+    using type = T;
+};
+
+template <std::size_t N, typename T, typename ... Ts>
+struct get_type_from_index<N, T, Ts...> {
+    using type = typename get_type_from_index<N-1, Ts...>::type;
+};
+
 // Wrapper struct to allow running functions on a specific Var for it's underlying type
 // Function is a function, Var is a weak class, Types is a weak_types object, and args is a list of argument types to call the function with
 // a struct to store a list of weak types
@@ -67,6 +75,9 @@ class weak;
 
 template <typename ... Types>
 class weak {
+
+    template< bool B, class T = void >
+    using enable_if_t = typename std::enable_if<B,T>::type;
 
     class type_id : public strong_typedef<type_id, std::size_t>, comparison<type_id> {
 
@@ -99,6 +110,7 @@ class weak {
 
     template < template<typename Type, typename ... Ts> class Functor, typename ... Ts>
     class using_weak {
+
         template <typename T, typename ... Args>
         static auto call(weak<Types...>&& ptr, Args&&... args) -> decltype(Functor<T, Ts...>()(std::forward<weak<Types...>>(ptr).template value<T>(), std::forward<Args>(args)...)) {
             return Functor<T, Ts...>()(std::forward<weak<Types...>>(ptr).template value<T>(), std::forward<Args>(args)...);
@@ -116,6 +128,14 @@ class weak {
 
         template <typename ... Args>
         static void with(weak_types<>, const weak<Types...>&&, Args&&...) {};
+
+        template <typename ... Args>
+        static void with_arithmetic(weak_types<>, const weak<Types...>&&, Args&&...) {};
+
+        template <typename Head, typename ... Tail, typename... Args>
+        static void with_arithmetic(weak_types<Head, Tail...>, weak<Types...>&& ptr, Args&&... args) {
+
+        };
 
         template <typename Head, typename ... Tail, typename ... Args>
         static void with(weak_types<Head, Tail...>, weak<Types...>&& ptr, Args&&... args){
@@ -144,8 +164,7 @@ class weak {
 
 public:
 
-    template <typename ... Ts>
-    weak(Ts... types){
+    weak(){
         // initialize with invalid type
         current_type = type_id();
         storage = nullptr;
@@ -158,7 +177,6 @@ public:
         storage = nullptr;
 
         emplace(val);
-
     }
 
     /// Destructor
@@ -215,7 +233,6 @@ public:
         emplace(val);
 
         return *this;
-
     }
 
     template <typename T>
@@ -326,8 +343,7 @@ public:
     /// Weak types
 
     /// rvalue
-    weak<Types...> operator+ (const weak<Types...>&& other) {
-
+    weak<Types...> operator+ (const weak<Types...>&& other) const {
 
         weak<Types...> added;
 
@@ -337,7 +353,7 @@ public:
     }
 
     /// lvalue
-    weak<Types...> operator+ (const weak<Types...>& other) {
+    weak<Types...> operator+ (const weak<Types...>& other) const {
 
 
         weak<Types...> added;
@@ -349,14 +365,14 @@ public:
 
     /// Subtraction
     /// Weak Types
-    weak<Types...> operator- (const weak<Types...>& other){
-        return operator+(other*weak<Types...>(-1));
+    weak<Types...> operator- (const weak<Types...>& other) const {
+        return operator+(other*(weak<Types...>(-1)));
     }
 
     /// Multiplication
     /// Weak Types
 
-    weak<Types...> operator* (const weak<Types...>& other) {
+    weak<Types...> operator* (const weak<Types...>& other) const {
 
         weak<Types...> multiplied;
 
@@ -366,7 +382,7 @@ public:
 
     }
 
-    weak<Types...> operator* (const weak<Types...>&& other) {
+    weak<Types...> operator* (const weak<Types...>&& other) const {
 
         weak<Types...> multiplied;
 
@@ -378,14 +394,14 @@ public:
 
     /// Division
     /// Weak Types
-    weak<Types...> operator / (const weak<Types...>& other) {
+    weak<Types...> operator / (const weak<Types...>& other) const {
         weak<Types...> divided;
         other.run<divideTop>(this, &divided);
 
         return divided;
     }
 
-    weak<Types...> operator / (const weak<Types...>&& other) {
+    weak<Types...> operator / (const weak<Types...>&& other) const {
         weak<Types...> divided;
         other.run<divideTop>(this, &divided);
 
@@ -415,7 +431,6 @@ public:
     bool operator > (const weak<Types...>&& other) const {
         return other.operator<(*this);
     }
-
 
     bool operator <= (const weak<Types...>& other) const {
         return !operator>(other);
@@ -463,54 +478,92 @@ private:
         }
     };
 
-    template <typename T, typename V>
+    template <typename T, typename V, typename enable = void>
+    struct addBottom;
 
-    struct addBottom {
+    template <typename T, typename V>
+    struct addBottom<T, V, typename std::enable_if<std::is_arithmetic<T>::value && std::is_arithmetic<V>::value>::type> {
         void operator() (T val, V val1, weak<Types...>* adding) {
             adding -> emplace(val + val1);
         }
     };
 
+
+    template <typename T, typename V>
+    struct addBottom<T, V, typename std::enable_if<!std::is_arithmetic<T>::value || !std::is_arithmetic<V>::value>::type> {
+        void operator() (T val, V val1, weak<Types...>* adding){};
+    };
+
     /// Multiplication implementation
     template <typename T>
     struct multTop {
-        void operator() (T val, weak<Types...>* other, weak<Types...>* multiplying) {
+        void operator() (T val, const weak<Types...>* other, weak<Types...>* multiplying) {
             other -> run<multBottom, T>(val, multiplying);
         }
     };
 
+    template <typename T, typename V, typename enable=void>
+    struct multBottom;
+
     template <typename T, typename V>
-    struct multBottom {
+    struct multBottom<T, V, typename std::enable_if<std::is_arithmetic<T>::value && std::is_arithmetic<V>::value>::type> {
         void operator() (T val, V val1, weak<Types...>* multiplying) {
             multiplying -> emplace(val * val1);
         }
     };
 
+    template <typename T, typename V>
+    struct multBottom<T, V, typename std::enable_if<!std::is_arithmetic<T>::value || !std::is_arithmetic<V>::value>::type> {
+        void operator() (T val, V val1, weak<Types...>* multiplying){
+
+        }
+    };
+
     template <typename T>
     struct divideTop {
-        void operator() (T val, weak<Types...>* numerator, weak<Types...>* dividing ) {
+        void operator() (T val, const weak<Types...>* numerator, weak<Types...>* dividing ) {
             numerator -> run<divideBottom, T>(val, dividing);
         }
     };
 
+    template <typename T, typename V, typename enable=void>
+    struct divideBottom;
+
     template< typename  T, typename V>
-    struct divideBottom {
+    struct divideBottom<T, V, typename std::enable_if<std::is_arithmetic<T>::value && std::is_arithmetic<V>::value>::type>  {
         void operator() (T val, V val2, weak<Types...>* dividing) {
             dividing -> emplace(val/val2);
         }
     };
 
+    template< typename  T, typename V>
+    struct divideBottom<T, V, typename std::enable_if<!std::is_arithmetic<T>::value || !std::is_arithmetic<V>::value>::type>  {
+        void operator() (T val, V val2, weak<Types...>* dividing) {
+
+        }
+    };
+
     template <typename T>
     struct lessTop {
-        void operator() (T val, weak<Types...>* _this, bool* result) {
+        void operator() (T val, const weak<Types...>* _this, bool* result) {
             _this->run<lessBottom, T>(val, result);
         }
     };
 
+    template <typename T, typename V, typename enable = void>
+    struct lessBottom;
+
     template <typename T, typename V>
-    struct lessBottom {
+    struct lessBottom<T, V, typename std::enable_if<std::is_arithmetic<T>::value && std::is_arithmetic<V>::value>::type> {
         void operator() (T val, V val2, bool* result) {
             *result = val2 > val;
+        }
+    };
+
+    template <typename T, typename V>
+    struct lessBottom<T, V, typename std::enable_if<!std::is_arithmetic<T>::value || !std::is_arithmetic<V>::value>::type> {
+        void operator() (T val, V val2, bool* result) {
+
         }
     };
 
