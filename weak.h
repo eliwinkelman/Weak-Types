@@ -263,6 +263,10 @@ public:
         return current_type;
     }
 
+    bool isValid() {
+        return !(current_type == type_id());
+    }
+
     template <typename Type>
     bool isType() {
         return current_type == type_id(weak_type<Type>{});
