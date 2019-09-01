@@ -9,7 +9,7 @@
 #include "type_traits"
 #include <utility>
 #include "strong_typedef.h"
-
+#include "is_comparable.h"
 
 
 //=== get_type_index ==//
@@ -408,6 +408,20 @@ public:
         return divided;
     }
 
+    // comparison operators
+
+    bool operator==(const weak<Types...>& other) const {
+        bool result;
+
+        run<equalTop>(&other, &result);
+
+        return result;
+    }
+
+    bool operator !=(const weak<Types...>& other) const {
+        return !operator==(other);
+    }
+
     bool operator < (const weak<Types...>& other) const {
         bool result;
 
@@ -469,6 +483,31 @@ public:
     }
 
 private:
+
+    /// Addition implementation
+    template <typename T>
+    struct equalTop {
+        void operator() (T val, const weak<Types...>* other, bool* result) {
+            other -> run<equalBottom, T>(val, result);
+        }
+    };
+
+    template <typename T, typename V, typename enable = void>
+    struct equalBottom;
+
+    template <typename T, typename V>
+    struct equalBottom<T, V, typename std::enable_if<std::is_arithmetic<T>::value && std::is_arithmetic<V>::value>::type> {
+        void operator() (T val, V val1, bool* result) {
+            *result = val == val1;
+        }
+    };
+
+    template <typename T, typename V>
+    struct equalBottom<T, V, typename std::enable_if<!std::is_arithmetic<T>::value || !std::is_arithmetic<V>::value>::type> {
+        void operator() (T val, V val1, bool* result){
+            *result = false;
+        };
+    };
 
     /// Addition implementation
     template <typename T>
