@@ -3,8 +3,6 @@ An implementation of weak typing for C++11 and Arduino.
 
 Thanks to [Foo Nathan](https://github.com/foonathan) for inspiration on variant implementation from his typesafe library.
 
-Should work for any types as long as they all have default constructors.
-
 ## Usage
 
 ``` c++
