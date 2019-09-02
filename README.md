@@ -13,6 +13,8 @@ Thanks to [Foo Nathan](https://github.com/foonathan) for inspiration on variant 
   var myFloat = 1.3f;
   var myString = std::string("Hello World");
   
+  var a = myInt + myDouble * myFloat;
+  
 ```
 
 ## Undefined Behavior
