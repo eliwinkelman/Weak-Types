@@ -3,8 +3,6 @@ An implementation of weak typing for C++11 and Arduino.
 
 Thanks to [Foo Nathan](https://github.com/foonathan) for inspiration on variant implementation from his typesafe library.
 
-Should work for any types as long as they all have default constructors.
-
 ## Usage
 
 ``` c++
@@ -14,6 +12,8 @@ Should work for any types as long as they all have default constructors.
   var myDouble = 14.2;
   var myFloat = 1.3f;
   var myString = std::string("Hello World");
+  
+  var a = myInt + myDouble * myFloat;
   
 ```
 
@@ -39,7 +39,7 @@ Returns: bool
 
 Behavior: Returns true if the weak<Types...> is in a valid state (i.e. current_type refers to a type in Types...). Returns false otherwise.
 
-#### bool isType<Type>() 
+#### bool isType\<Type\>() 
 Input: a Type template parameter.
 
 Returns: Bool
@@ -47,7 +47,7 @@ Returns: Bool
 Behavior: Returns true if the underlying value has is of type Type, returns false otherwise.
 
   
-#### void run<Functor<typename T>>(Args... args)
+#### void run<Functor\<typename T>>(Args... args)
 Input: 
   
   * Functor: a struct with at least one templated type T and a defined () operator which accepts a value of type T as the first argument.
@@ -78,12 +78,31 @@ Example:
   // 
 ```
 
-#### T&& value<Type>(ErrorHandlerFunc errorHandlerFunc) 
-Inputs: A type and an error handling function that accepts a string as it's only argument.
+#### simple_optional\<Type\> retrieve\<Type>() 
+Inputs: A type.
 
-Output: The underlying value of type T or an instance of T created by T's default constructor.
+Returns: A simple_optional object.
 
 Behavior: 
-If the underlying value is of type T, returns the underlying value. Otherwise it calls errorHandlerFunc with the error message "\[ERROR\] Weak Types: Attempting to access underlying value with incorrect type." and returns an object created with T's default constructor.
+If the underlying value is of type T, returns a simple_optional object that holds the underlying value. Otherwise returns a simple_optional object that holds nothing.
 
+Example usage:
 
+``` c++
+    using var = weak<int, float, double, std::string>;
+    var a = 10;
+    a.retrieve<int>().value_or(0); // 10
+    a.retrieve<float>().value_or(0); // 0;
+    a.retrieve<int>().value(); // 10
+    a.retrieve<float>().value(); // Error
+    
+    if (a.retrieve<float>()) {
+      float val = a.retrieve<float>().value();
+      
+      // do stuff with your float
+    }
+    else {
+      // didn't get a float :(
+    }
+    
+```
