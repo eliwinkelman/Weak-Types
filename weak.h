@@ -9,7 +9,7 @@
 #include "type_traits"
 #include <utility>
 #include "strong_typedef.h"
-#include "is_comparable.h"
+#include "has_operator.h"
 
 
 template <class T>
@@ -22,13 +22,9 @@ class simple_optional {
 
 public:
 
-    simple_optional() {
-        ptr = nullptr;
-    }
+    simple_optional() : ptr(nullptr){}
 
-    simple_optional(T val) {
-        ptr = new T(val);
-    }
+    simple_optional(T val) : ptr(new T(val)){}
 
     simple_optional(const simple_optional& other) {
         if (other) {
@@ -46,7 +42,18 @@ public:
         }
     }
 
-    constexpr const T& value_or(const T& orVal) const & {
+    void emplace(T val) {
+        if (ptr != nullptr) {
+            delete ptr;
+        }
+        ptr = new T(val);
+    }
+
+    constexpr T& value_or(T&& orVal) const & {
+        return ptr != nullptr ? *ptr : orVal;
+    }
+
+    constexpr T& value_or(T& orVal) const & {
         return ptr != nullptr ? *ptr : orVal;
     }
 
@@ -123,9 +130,6 @@ class weak;
 template <typename ... Types>
 class weak {
 
-    template< bool B, class T = void >
-    using enable_if_t = typename std::enable_if<B,T>::type;
-
     class type_id : public strong_typedef<type_id, std::size_t>, comparison<type_id> {
 
     public:
@@ -175,14 +179,6 @@ class weak {
 
         template <typename ... Args>
         static void with(weak_types<>, const weak<Types...>&&, Args&&...) {};
-
-        template <typename ... Args>
-        static void with_arithmetic(weak_types<>, const weak<Types...>&&, Args&&...) {};
-
-        template <typename Head, typename ... Tail, typename... Args>
-        static void with_arithmetic(weak_types<Head, Tail...>, weak<Types...>&& ptr, Args&&... args) {
-
-        };
 
         template <typename Head, typename ... Tail, typename ... Args>
         static void with(weak_types<Head, Tail...>, weak<Types...>&& ptr, Args&&... args){
@@ -332,10 +328,17 @@ public:
     template <typename T>
     simple_optional<T> retrieve() const {
         if (check(weak_type<T>{})) {
-            return simple_optional<T>(*(T*)storage);
+            return simple_optional<T>(value<T>());
         }
         else return simple_optional<T>();
     };
+
+    template <typename T>
+    simple_optional<T> as() const {
+        simple_optional<T> castedMaybe = simple_optional<T>();
+        run<cast, T>(castedMaybe);
+        return castedMaybe;
+    }
 
 private:
 
@@ -347,7 +350,7 @@ private:
 
     template <typename T>
     T&& value() const {
-        return std::move(*(T*)storage);
+        return std::move(*reinterpret_cast<T*>(storage));
     };
 
 
@@ -372,10 +375,20 @@ private:
         }
     };
 
+    template <typename T, typename V, typename enable=void>
+    struct cast;
+
     template <typename T, typename V>
-    struct cast {
-        void operator() (T val, V* returnVal) {
-            *returnVal = static_cast<V>(val);
+    struct cast<T, V, typename std::enable_if<std::is_convertible<T, V>::value>::type> {
+        void operator() (T val, simple_optional<V>& returnVal) {
+                returnVal.emplace((V)val);
+        };
+    };
+
+    template <typename T, typename V>
+    struct cast<T, V, typename std::enable_if<!std::is_convertible<T, V>::value>::type> {
+        void operator() (T val, simple_optional<V>& returnVal) {
+
         };
     };
 
