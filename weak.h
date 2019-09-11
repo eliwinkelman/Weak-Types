@@ -333,12 +333,13 @@ public:
         else return simple_optional<T>();
     };
 
-    template <typename T>
+
+    /**template <typename T>
     simple_optional<T> as() const {
         simple_optional<T> castedMaybe = simple_optional<T>();
         run<cast, T>(castedMaybe);
         return castedMaybe;
-    }
+    }*/
 
 private:
 
@@ -424,7 +425,21 @@ public:
     /// Subtraction
     /// Weak Types
     weak<Types...> operator- (const weak<Types...>& other) const {
-        return operator+(other*(weak<Types...>(-1)));
+        weak<Types...> subtracted;
+
+        other.run<subtractTop>(this, &subtracted);
+
+        return subtracted;
+    }
+
+    /// Subtraction
+    /// Weak Types
+    weak<Types...> operator- (const weak<Types...>&& other) const {
+        weak<Types...> subtracted;
+
+        other.run<subtractTop>(this, &subtracted);
+
+        return subtracted;
     }
 
     /// Multiplication
@@ -447,7 +462,6 @@ public:
         run<multTop>(&other, &multiplied);
 
         return multiplied;
-
     }
 
     /// Division
@@ -467,9 +481,8 @@ public:
     }
 
     // comparison operators
-
     bool operator==(const weak<Types...>& other) const {
-        bool result;
+        bool result = false;
 
         run<equalTop>(&other, &result);
 
@@ -477,11 +490,15 @@ public:
     }
 
     bool operator !=(const weak<Types...>& other) const {
-        return !operator==(other);
+        bool result = false;
+
+        run<notEqualTop>(&other, &result);
+
+        return result;
     }
 
     bool operator < (const weak<Types...>& other) const {
-        bool result;
+        bool result = false;
 
         other.run<lessTop>(this, &result);
 
@@ -489,7 +506,7 @@ public:
     }
 
     bool operator < (const weak<Types...>&& other) const {
-        bool result;
+        bool result = false;
 
         other.run<lessTop>(this, &result);
 
@@ -497,27 +514,49 @@ public:
     }
 
     bool operator > (const weak<Types...>& other) const {
-        return other.operator<(*this);
+        bool result = false;
+
+        other.run<greaterTop>(this, &result);
+
+        return result;
     }
 
     bool operator > (const weak<Types...>&& other) const {
-        return other.operator<(*this);
+        bool result = false;
+
+        other.run<greaterTop>(this, &result);
+
+        return result;
     }
 
     bool operator <= (const weak<Types...>& other) const {
-        return !operator>(other);
+        bool result = false;
+
+        other.run<lessThanEqualToTop>(this, &result);
+
+        return result;
     }
 
     bool operator <= (const weak<Types...>&& other) const {
-        return !operator>(other);
+        bool result = false;
+
+        other.run<lessThanEqualToTop>(this, &result);
+
+        return result;
     }
 
     bool operator >= (const weak<Types...>& other) const {
-        return !operator<(other);
+        bool result = false;
+
+        other.run<greaterThanEqualToTop>(this, &result);
+        return result;
     }
 
     bool operator >= (const weak<Types...>&& other) const {
-        return !operator<(other);
+        bool result = false;
+
+        other.run<greaterThanEqualToTop>(this, &result);
+        return result;
     }
 
     weak<Types...>& operator +=(const weak<Types...>& other) {
@@ -542,7 +581,7 @@ public:
 
 private:
 
-    /// Addition implementation
+
     template <typename T>
     struct equalTop {
         void operator() (T val, const weak<Types...>* other, bool* result) {
@@ -554,16 +593,41 @@ private:
     struct equalBottom;
 
     template <typename T, typename V>
-    struct equalBottom<T, V, typename std::enable_if<std::is_arithmetic<T>::value && std::is_arithmetic<V>::value>::type> {
+    struct equalBottom<T, V, typename std::enable_if<has_equal<T, V>::value>::type> {
         void operator() (T val, V val1, bool* result) {
             *result = val == val1;
         }
     };
 
     template <typename T, typename V>
-    struct equalBottom<T, V, typename std::enable_if<!std::is_arithmetic<T>::value || !std::is_arithmetic<V>::value>::type> {
+    struct equalBottom<T, V, typename std::enable_if<!has_equal<T, V>::value>::type>{
         void operator() (T val, V val1, bool* result){
-            *result = false;
+
+        };
+    };
+
+
+    template <typename T>
+    struct notEqualTop {
+        void operator() (T val, const weak<Types...>* other, bool* result) {
+            other -> run<notEqualBottom, T>(val, result);
+        }
+    };
+
+    template <typename T, typename V, typename enable = void>
+    struct notEqualBottom;
+
+    template <typename T, typename V>
+    struct notEqualBottom<T, V, typename std::enable_if<has_not_equal<T, V>::value>::type> {
+        void operator() (T val, V val1, bool* result) {
+            *result = val != val1;
+        }
+    };
+
+    template <typename T, typename V>
+    struct notEqualBottom<T, V, typename std::enable_if<!has_not_equal<T, V>::value>::type> {
+        void operator() (T val, V val1, bool* result){
+
         };
     };
 
@@ -579,7 +643,7 @@ private:
     struct addBottom;
 
     template <typename T, typename V>
-    struct addBottom<T, V, typename std::enable_if<std::is_arithmetic<T>::value && std::is_arithmetic<V>::value>::type> {
+    struct addBottom<T, V, typename std::enable_if<has_addition<T, V>::value>::type> {
         void operator() (T val, V val1, weak<Types...>* adding) {
             adding -> emplace(val + val1);
         }
@@ -587,7 +651,33 @@ private:
 
 
     template <typename T, typename V>
-    struct addBottom<T, V, typename std::enable_if<!std::is_arithmetic<T>::value || !std::is_arithmetic<V>::value>::type> {
+    struct addBottom<T, V, typename std::enable_if<!has_addition<T, V>::value>::type> {
+        void operator() (T val, V val1, weak<Types...>* adding){};
+    };
+
+    /// Addition implementation
+    template <typename T>
+    struct subtractTop {
+        void operator() (T val, const weak<Types...>* other, weak<Types...>* adding) {
+
+            other -> run<subtractBottom, T>(val, adding);
+        }
+    };
+
+    template <typename T, typename V, typename enable = void>
+    struct subtractBottom;
+
+    template <typename T, typename V>
+    struct subtractBottom<T, V, typename std::enable_if<has_subtraction<T, V>::value>::type> {
+
+        void operator() (T val, V val1, weak<Types...>* adding) {
+            adding -> emplace(val-val1);
+        }
+    };
+
+
+    template <typename T, typename V>
+    struct subtractBottom<T, V, typename std::enable_if<!has_subtraction<T, V>::value>::type> {
         void operator() (T val, V val1, weak<Types...>* adding){};
     };
 
@@ -603,14 +693,14 @@ private:
     struct multBottom;
 
     template <typename T, typename V>
-    struct multBottom<T, V, typename std::enable_if<std::is_arithmetic<T>::value && std::is_arithmetic<V>::value>::type> {
+    struct multBottom<T, V, typename std::enable_if<has_multiplication<T, V>::value>::type> {
         void operator() (T val, V val1, weak<Types...>* multiplying) {
             multiplying -> emplace(val * val1);
         }
     };
 
     template <typename T, typename V>
-    struct multBottom<T, V, typename std::enable_if<!std::is_arithmetic<T>::value || !std::is_arithmetic<V>::value>::type> {
+    struct multBottom<T, V, typename std::enable_if<!has_multiplication<T, V>::value>::type> {
         void operator() (T val, V val1, weak<Types...>* multiplying){
 
         }
@@ -627,14 +717,14 @@ private:
     struct divideBottom;
 
     template< typename  T, typename V>
-    struct divideBottom<T, V, typename std::enable_if<std::is_arithmetic<T>::value && std::is_arithmetic<V>::value>::type>  {
+    struct divideBottom<T, V, typename std::enable_if<has_division<T, V>::value>::type>  {
         void operator() (T val, V val2, weak<Types...>* dividing) {
             dividing -> emplace(val/val2);
         }
     };
 
     template< typename  T, typename V>
-    struct divideBottom<T, V, typename std::enable_if<!std::is_arithmetic<T>::value || !std::is_arithmetic<V>::value>::type>  {
+    struct divideBottom<T, V, typename std::enable_if<!has_division<T, V>::value>::type>  {
         void operator() (T val, V val2, weak<Types...>* dividing) {
 
         }
@@ -651,19 +741,90 @@ private:
     struct lessBottom;
 
     template <typename T, typename V>
-    struct lessBottom<T, V, typename std::enable_if<std::is_arithmetic<T>::value && std::is_arithmetic<V>::value>::type> {
+    struct lessBottom<T, V, typename std::enable_if<has_less_than<T, V>::value>::type> {
         void operator() (T val, V val2, bool* result) {
             *result = val2 > val;
         }
     };
 
     template <typename T, typename V>
-    struct lessBottom<T, V, typename std::enable_if<!std::is_arithmetic<T>::value || !std::is_arithmetic<V>::value>::type> {
+    struct lessBottom<T, V, typename std::enable_if<!has_less_than<T, V>::value>::type> {
         void operator() (T val, V val2, bool* result) {
 
         }
     };
 
+    template <typename T>
+    struct greaterTop {
+        void operator() (T val, const weak<Types...>* _this, bool* result) {
+            _this->run<greaterBottom, T>(val, result);
+        }
+    };
+
+    template <typename T, typename V, typename enable = void>
+    struct greaterBottom;
+
+    template <typename T, typename V>
+    struct greaterBottom<T, V, typename std::enable_if<has_greater_than<T, V>::value>::type> {
+        void operator() (T val, V val2, bool* result) {
+            *result = val > val2;
+        }
+    };
+
+    template <typename T, typename V>
+    struct greaterBottom<T, V, typename std::enable_if<!has_greater_than<T, V>::value>::type> {
+        void operator() (T val, V val2, bool* result) {
+
+        }
+    };
+
+    template <typename T>
+    struct lessThanEqualToTop {
+        void operator() (T val, const weak<Types...>* _this, bool* result) {
+            _this->run<lessThanEqualToBottom, T>(val, result);
+        }
+    };
+
+    template <typename T, typename V, typename enable = void>
+    struct lessThanEqualToBottom;
+
+    template <typename T, typename V>
+    struct lessThanEqualToBottom<T, V, typename std::enable_if<has_less_than_equal_to<T, V>::value>::type> {
+        void operator() (T val, V val2, bool* result) {
+            *result = val <= val2;
+        }
+    };
+
+    template <typename T, typename V>
+    struct lessThanEqualToBottom<T, V, typename std::enable_if<!has_less_than_equal_to<T, V>::value>::type> {
+        void operator() (T val, V val2, bool* result) {
+
+        }
+    };
+
+    template <typename T>
+    struct greaterThanEqualToTop {
+        void operator() (T val, const weak<Types...>* _this, bool* result) {
+            _this->run<greaterThanEqualToBottom, T>(val, result);
+        }
+    };
+
+    template <typename T, typename V, typename enable = void>
+    struct greaterThanEqualToBottom;
+
+    template <typename T, typename V>
+    struct greaterThanEqualToBottom<T, V, typename std::enable_if<has_greater_than_equal_to<T, V>::value>::type> {
+        void operator() (T val, V val2, bool* result) {
+            *result = val >= val;
+        }
+    };
+
+    template <typename T, typename V>
+    struct greaterThanEqualToBottom<T, V, typename std::enable_if<!has_greater_than_equal_to<T, V>::value>::type> {
+        void operator() (T val, V val2, bool* result) {
+
+        }
+    };
 };
 
 #endif //WEAK_H
