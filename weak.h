@@ -22,11 +22,20 @@ class simple_optional {
 
 public:
 
-    simple_optional() : ptr(nullptr){}
+    simple_optional() : ptr(nullptr){
 
-    simple_optional(T val) : ptr(new T(val)){}
+
+    }
+
+    simple_optional(const T& val) : ptr(new T(val)){}
+
+    simple_optional(const T&& val) : ptr(new T(val)){}
 
     simple_optional(const simple_optional& other) {
+        simple_optional(std::move(other));
+    }
+
+    simple_optional(const simple_optional&& other) {
         if (other) {
             ptr = new T(other.value());
         }
@@ -42,11 +51,17 @@ public:
         }
     }
 
-    void emplace(T val) {
+    void emplace(const T&& val) {
+
         if (ptr != nullptr) {
             delete ptr;
         }
+
         ptr = new T(val);
+    }
+
+    void emplace(const T& val) {
+        emplace(std::move(val));
     }
 
     constexpr T& value_or(T&& orVal) const & {
@@ -288,17 +303,17 @@ public:
 
     template <typename T>
     void emplace(const T val) {
-
+        using t = typename std::decay<T>::type;
         /// ensure that the type is valid at compile time
-        static_assert(type_id::valid(weak_type<T>{}), "Cannot store with non-weak type.");
+        static_assert(type_id::valid(weak_type<t>{}), "Cannot store with non-weak type.");
 
-        current_type = type_id(weak_type<T>());
+        current_type = type_id(weak_type<t>());
 
         if (storage != nullptr) {
             run<destroy>(&storage);
         }
 
-        storage = new typename std::decay<T>::type(val);
+        storage = new t(val);
     }
 
     const type_id& type() const noexcept
@@ -334,12 +349,19 @@ public:
     };
 
 
-    /**template <typename T>
+    template <typename T>
     simple_optional<T> as() const {
+
         simple_optional<T> castedMaybe = simple_optional<T>();
         run<cast, T>(castedMaybe);
+
         return castedMaybe;
-    }*/
+    }
+
+    template <typename T>
+    T&& value() const {
+        return std::move(*reinterpret_cast<T*>(storage));
+    };
 
 private:
 
@@ -348,12 +370,6 @@ private:
     bool check(weak_type<Type> check_type) const {
         return current_type == check_type;
     }
-
-    template <typename T>
-    T&& value() const {
-        return std::move(*reinterpret_cast<T*>(storage));
-    };
-
 
     //// Functors to destroy, copy, move, assign without knowing the underlying value
     template <typename T>
@@ -382,7 +398,7 @@ private:
     template <typename T, typename V>
     struct cast<T, V, typename std::enable_if<std::is_convertible<T, V>::value>::type> {
         void operator() (T val, simple_optional<V>& returnVal) {
-                returnVal.emplace((V)val);
+                returnVal.emplace(V(val));
         };
     };
 
@@ -393,9 +409,7 @@ private:
         };
     };
 
-
 public:
-
     ///// Arithmetic Operators /////
 
     /// Addition
