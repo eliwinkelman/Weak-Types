@@ -1,7 +1,7 @@
 # Weak-Types
 An implementation of weak typing for C++11 and Arduino.
 
-Thanks to [Foo Nathan](https://github.com/foonathan) for inspiration on variant implementation from his typesafe library.
+Thanks to [Foo Nathan](https://github.com/foonathan) for inspiration on variant implementation from his typesafe library. The type tracking internals of this library are largely based on his implementation, with some modifications to make things run in C++11/Arduino and to properly override operators to create the operator behavior you would expect from the underlying type.
 
 ## Usage
 
